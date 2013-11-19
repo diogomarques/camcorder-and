@@ -31,22 +31,25 @@ import android.view.WindowManager.LayoutParams;
  * @author Diogo Marques <diogohomemmarques@gmail.com>
  * 
  */
-// TODO: select front or rear camera according to preferences
-// TODO: handle max video size from preferences
+// TODO: select front or rear camera according to preferences.
+// TODO: handle max video size from preferences; includes notification to user.
 // TODO: handle recording quality from preferences
 // TODO: advertise recording state through prefs.
 
 public class RecordingService extends Service implements SurfaceHolder.Callback {
 
+	private static final String BACKGROUND_VIDEOS_LOCATION = "/BackgroundVideos";
 	private WindowManager mWindowManager;
 	private SurfaceView mSurfaceView;
 	private Camera mCamera = null;
 	private MediaRecorder mMediaRecorder = null;
-	
+
 	private static final int NOTIFICATION_ID = 981532;
-	
+
+	// Defaults - ft camera w/ high quality, no maximum size
 	private boolean mUseFrontCamera;
-	private boolean mRecordInHighQuality;
+	private boolean mRecordInHighQuality = true;
+	private int mMaxSize = -1;
 
 	public RecordingService() {
 	}
@@ -54,16 +57,18 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 	// TODO: add notifications in pre JB or target > JB
 	// TODO: Open MainActivity on notification click.
 	// Min JB for this notification syntax
-	@TargetApi(Build.VERSION_CODES.JELLY_BEAN) 
+	@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 	@Override
 	public void onCreate() {
 
 		// Start foreground service to avoid unexpected kill
 		Notification notification = new Notification.Builder(this)
 				.setContentTitle("Background recording")
-				.setContentText((mUseFrontCamera ? "front" : "back") + " camera; " + (mRecordInHighQuality ? "high" : "low") + " quality.")
-				.setSmallIcon(R.drawable.ic_launcher)
-				.build();
+				.setContentText(
+						(mUseFrontCamera ? "front" : "back") + " camera; "
+								+ (mRecordInHighQuality ? "high" : "low")
+								+ " quality.")
+				.setSmallIcon(R.drawable.ic_launcher).build();
 		startForeground(NOTIFICATION_ID, notification);
 
 		// Create new SurfaceView, set its size to 1x1, move it to the top left
@@ -86,27 +91,32 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 	@Override
 	public void surfaceCreated(SurfaceHolder surfaceHolder) {
 
-		mCamera = Camera.open(CameraInfo.CAMERA_FACING_FRONT);
-		//camera = Camera.open();
-		
+		// Select front of back facing camera
+		mCamera = Camera.open(mUseFrontCamera ? CameraInfo.CAMERA_FACING_FRONT
+				: CameraInfo.CAMERA_FACING_BACK);
 		mMediaRecorder = new MediaRecorder();
 		mCamera.unlock();
-
+		// Magic here:
 		mMediaRecorder.setPreviewDisplay(surfaceHolder.getSurface());
 		mMediaRecorder.setCamera(mCamera);
+		// Use the an audio source with the same orientation than the camerA
 		mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
 		mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-		mMediaRecorder.setProfile(CamcorderProfile
-				.get(CameraInfo.CAMERA_FACING_FRONT, CamcorderProfile.QUALITY_HIGH));
-		mMediaRecorder.setOrientationHint(270);
-		
-
+		// Select profile according to camera / quality
+		mMediaRecorder.setProfile(CamcorderProfile.get(
+				(mUseFrontCamera ? CameraInfo.CAMERA_FACING_FRONT
+						: CameraInfo.CAMERA_FACING_BACK),
+				(mRecordInHighQuality ? CamcorderProfile.QUALITY_HIGH
+						: CamcorderProfile.QUALITY_LOW)));
+		// Fix camera rotations for front facing camera
+		// TODO: check if this is always the deisred behaviour
+		if (mUseFrontCamera)
+			mMediaRecorder.setOrientationHint(270);
 		mMediaRecorder
 				.setOutputFile(Environment.getExternalStorageDirectory()
-						+ "/"
+						+ BACKGROUND_VIDEOS_LOCATION
 						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
 								new Date().getTime()) + ".mp4");
-
 		try {
 			mMediaRecorder.prepare();
 		} catch (Exception e) {
