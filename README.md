@@ -1,4 +1,4 @@
-camcorder-and-and
+camcorder-and
 =================
 
-Camcorder &amp;&amp; is an Android background video recording app.
+Camcorder &amp; is an Android background video recording app.
