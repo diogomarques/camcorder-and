@@ -77,7 +77,7 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 						(mPrefUseFTCamera ? "front" : "back") + " camera; "
 								+ (mPrefHQRecording ? "high" : "low")
 								+ " quality.")
-				.setSmallIcon(R.drawable.ic_launcher).build();
+				.setSmallIcon(R.drawable.ic_notif_recording).build();
 		startForeground(NOTIFICATION_ID, notification);
 
 		// Create new SurfaceView, set its size to 1x1, move it to the top left
@@ -140,12 +140,6 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 						+ "/"
 						+ BACKGROUND_VIDEOS_FOLDER
 						+ "/"
-						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
-								new Date().getTime()) + ".mp4");
-		Log.w(RecordingService.class.getName(), "path: " + file.getPath());
-		Log.w(RecordingService.class.getName(),
-				"old was: "
-						+ Environment.getExternalStorageDirectory()
 						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
 								new Date().getTime()) + ".mp4");
 		return file.getPath();
