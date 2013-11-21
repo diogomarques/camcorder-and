@@ -1,5 +1,6 @@
-package net.diogomarques.camcorderandand;
+package net.diogomarques.camcorderand;
 
+import net.diogomarques.camcorderandand.R;
 import android.os.Bundle;
 import android.app.Activity;
 import android.content.Intent;

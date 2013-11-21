@@ -1,7 +1,9 @@
-package net.diogomarques.camcorderandand;
+package net.diogomarques.camcorderand;
 
+import java.io.File;
 import java.util.Date;
 
+import net.diogomarques.camcorderandand.R;
 import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.Service;
@@ -16,7 +18,9 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.Gravity;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowManager;
@@ -38,7 +42,11 @@ import android.view.WindowManager.LayoutParams;
 
 public class RecordingService extends Service implements SurfaceHolder.Callback {
 
-	private static final String BACKGROUND_VIDEOS_LOCATION = "/BackgroundVideos";
+	public static enum Orientation {
+		PORTRAIT, LANDSCAPE, AUTO
+	}
+
+	private static final String BACKGROUND_VIDEOS_FOLDER = "BackgroundVideos";
 	private WindowManager mWindowManager;
 	private SurfaceView mSurfaceView;
 	private Camera mCamera = null;
@@ -46,10 +54,11 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 
 	private static final int NOTIFICATION_ID = 981532;
 
-	// Defaults - ft camera w/ high quality, no maximum size
-	private boolean mUseFrontCamera;
-	private boolean mRecordInHighQuality = true;
-	private int mMaxSize = -1;
+	// Default prefs - ft camera w/ high quality, no maximum size
+	private boolean mPrefUseFTCamera = true;
+	private boolean mPrefHQRecording = true;
+	private int mPrefMaxSize = -1;
+	private Orientation mPrefOrientation = Orientation.PORTRAIT;
 
 	public RecordingService() {
 	}
@@ -65,8 +74,8 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 		Notification notification = new Notification.Builder(this)
 				.setContentTitle("Background recording")
 				.setContentText(
-						(mUseFrontCamera ? "front" : "back") + " camera; "
-								+ (mRecordInHighQuality ? "high" : "low")
+						(mPrefUseFTCamera ? "front" : "back") + " camera; "
+								+ (mPrefHQRecording ? "high" : "low")
 								+ " quality.")
 				.setSmallIcon(R.drawable.ic_launcher).build();
 		startForeground(NOTIFICATION_ID, notification);
@@ -92,10 +101,17 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 	public void surfaceCreated(SurfaceHolder surfaceHolder) {
 
 		// Select front of back facing camera
-		mCamera = Camera.open(mUseFrontCamera ? CameraInfo.CAMERA_FACING_FRONT
+		mCamera = Camera.open(mPrefUseFTCamera ? CameraInfo.CAMERA_FACING_FRONT
 				: CameraInfo.CAMERA_FACING_BACK);
 		mMediaRecorder = new MediaRecorder();
 		mCamera.unlock();
+
+		// TODO: check if this is always the desired behavior
+		// Rotate camera
+		// setCameraOrientation();
+		if (mPrefUseFTCamera)
+			mMediaRecorder.setOrientationHint(270);
+
 		// Magic here:
 		mMediaRecorder.setPreviewDisplay(surfaceHolder.getSurface());
 		mMediaRecorder.setCamera(mCamera);
@@ -104,24 +120,65 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 		mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
 		// Select profile according to camera / quality
 		mMediaRecorder.setProfile(CamcorderProfile.get(
-				(mUseFrontCamera ? CameraInfo.CAMERA_FACING_FRONT
+				(mPrefUseFTCamera ? CameraInfo.CAMERA_FACING_FRONT
 						: CameraInfo.CAMERA_FACING_BACK),
-				(mRecordInHighQuality ? CamcorderProfile.QUALITY_HIGH
+				(mPrefHQRecording ? CamcorderProfile.QUALITY_HIGH
 						: CamcorderProfile.QUALITY_LOW)));
-		// Fix camera rotations for front facing camera
-		// TODO: check if this is always the deisred behaviour
-		if (mUseFrontCamera)
-			mMediaRecorder.setOrientationHint(270);
-		mMediaRecorder
-				.setOutputFile(Environment.getExternalStorageDirectory()
-						+ BACKGROUND_VIDEOS_LOCATION
-						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
-								new Date().getTime()) + ".mp4");
+
+		mMediaRecorder.setOutputFile(getOutputFilePath());
 		try {
 			mMediaRecorder.prepare();
 		} catch (Exception e) {
 		}
 		mMediaRecorder.start();
+
+	}
+
+	private String getOutputFilePath() {
+		File file = new File(
+				Environment.getExternalStorageDirectory()
+						+ "/"
+						+ BACKGROUND_VIDEOS_FOLDER
+						+ "/"
+						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
+								new Date().getTime()) + ".mp4");
+		Log.w(RecordingService.class.getName(), "path: " + file.getPath());
+		Log.w(RecordingService.class.getName(),
+				"old was: "
+						+ Environment.getExternalStorageDirectory()
+						+ DateFormat.format("yyyy-MM-dd_kk-mm-ss",
+								new Date().getTime()) + ".mp4");
+		return file.getPath();
+	}
+
+	private void setCameraOrientation() {
+		switch (mPrefOrientation) {
+		case LANDSCAPE:
+			mCamera.setDisplayOrientation(0);
+			break;
+
+		case PORTRAIT:
+			mCamera.setDisplayOrientation(90);
+			break;
+		case AUTO:
+			int rotation = mWindowManager.getDefaultDisplay().getRotation();
+
+			switch (rotation) {
+			case Surface.ROTATION_0:
+				mCamera.setDisplayOrientation(0);
+				break;
+			case Surface.ROTATION_90:
+				mCamera.setDisplayOrientation(90);
+				break;
+			case Surface.ROTATION_180:
+				mCamera.setDisplayOrientation(0);
+				break;
+			case Surface.ROTATION_270:
+				mCamera.setDisplayOrientation(90);
+				break;
+			}
+			break;
+		}
 
 	}
 
