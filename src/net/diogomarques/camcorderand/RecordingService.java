@@ -110,7 +110,7 @@ public class RecordingService extends Service implements SurfaceHolder.Callback 
 		// Rotate camera
 		// setCameraOrientation();
 		if (mPrefUseFTCamera)
-			mMediaRecorder.setOrientationHint(270);
+			mMediaRecorder.setOrientationHint(180);
 
 		// Magic here:
 		mMediaRecorder.setPreviewDisplay(surfaceHolder.getSurface());
